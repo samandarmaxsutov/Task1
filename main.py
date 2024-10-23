@@ -9,8 +9,8 @@ def extract_number_and_text(title):
         number = multi_part_match.group(1)
         text = title[multi_part_match.end():].strip()  
         return number, text
-    # 3.2
-    single_part_match = re.match(r"^(\d+\.\d+)", title)
+     # Match for single-part version numbers (e.g., 2.1 or 2.1.)
+    single_part_match = re.match(r"^(\d+\.\d+\.?)", title)  # Allow for an optional trailing dot
     if single_part_match:
         number = single_part_match.group(1)
         text = title[single_part_match.end():].strip()  
@@ -25,31 +25,49 @@ def extract_number_and_text(title):
     # " "
     return " ", title.strip()
 
-
+def remove_equal_subsections(structure):
+    for key, value in list(structure.items()):
+        if "subsections" in value:
+            keys_to_remove = [sub_key for sub_key in value["subsections"].keys() if sub_key == key]
+            for sub_key in keys_to_remove:
+                del value["subsections"][sub_key]
+        if "sections" in value:
+            remove_equal_subsections(value["sections"])
+            
 def build_structure_data(items):
     structure = {}
-    
-    for number, text in items:
-        levels = number.split('.')
-        section = structure
 
+    for number, text in items:
+        if not number.strip():
+            continue
+        
+        levels = number.split('.')
+        current_section = structure
+        
         for i, level in enumerate(levels):
             section_number = '.'.join(levels[:i + 1])
+            
+            if i == 1 and number.endswith('.'):
+                section_number += '.'
 
-            if section_number not in section:
-                section[section_number] = {"title": text if i == len(levels) - 1 else ""}
+            if section_number not in current_section:
+                section_data = {"title": ""}
                 
                 if i == 0:
-                    section[section_number]["sections"] = {}
+                    section_data["sections"] = {}
                 elif i == 1:
-                    section[section_number]["subsections"] = {}
-
+                    section_data["subsections"] = {}
+                
+                current_section[section_number] = section_data
+            if i == len(levels) - 1 or (i == 1 and number.endswith('.')):
+                current_section[section_number]["title"] = text
+            
             if i == 0:
-                section = section[section_number]["sections"]
+                current_section = current_section[section_number]["sections"]
             elif i == 1:
-                section = section[section_number]["subsections"]
+                current_section = current_section[section_number]["subsections"]
             else:
-                section = section[section_number]
+                current_section = current_section[section_number]
 
     return structure
 
@@ -60,15 +78,15 @@ def extract_structure_from_pdf(pdf_path):
         items = []
         for i in range(len(toc)):
             _, title, _ = toc[i]
-            # print(title)
+            
             number, text = extract_number_and_text(title)
             if 'Глава' in title:
                 _,text = extract_number_and_text(toc[i+1][1])
             if number.strip():    
                 items.append((number, text))
-                print(number)
+                # print(number)
         structure = build_structure_data(items)
-
+        remove_equal_subsections(structure)
     except Exception as e:
         print(f"Error processing PDF: {e}")
 
