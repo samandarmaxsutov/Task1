@@ -2,4 +2,4 @@
 Extract the table of contents from a provided PDF file and save it in a structured JSON format. The JSON structure should accurately reflect the hierarchy of chapters, sections, and subsections present in the ToC.
 
 # Example JSON and PDF Files
-Example Files
+[Example](https://github.com/samandarmaxsutov/Task1/tree/main/data/example_files)
